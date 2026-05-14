@@ -6,6 +6,7 @@
 #include <string.h>
 #include "esp_rom_sys.h"
 #include "esp_check.h"
+#include "driver/gpio.h"
 
 #include "Emitter.h"
 
@@ -60,8 +61,9 @@ esp_err_t emmitter_init()
       .timer_sel  = EMITTER_TIMER,
       .duty       = 0,    // off by default
       .hpoint     = 0,
-      .sleep_mode = LEDC_SLEEP_MODE_NO_ALIVE_NO_PD,
-      .flags      = { .output_invert = 0 },
+      .sleep_mode  = LEDC_SLEEP_MODE_NO_ALIVE_NO_PD,
+      .flags       = { .output_invert = 0 },
+      .deconfigure = false,
     };
     ESP_RETURN_ON_ERROR(ledc_channel_config(&ch_config), TAG, "Channel %d config failed", i);
   }
@@ -106,7 +108,7 @@ void emitter_enable(uint8_t channel, bool enable)
 // Turn all transducers on or off
 void emitter_enable_all(bool enable)
 {
-  for (int i = 0; i < NUMBER_OF_TRANSDUCERS; i++)
+  for (int i = 1; i <= NUMBER_OF_TRANSDUCERS; i++)
   {
     emitter_enable(i, enable);
   }
