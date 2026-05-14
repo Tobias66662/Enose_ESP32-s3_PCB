@@ -1,17 +1,20 @@
 #include <stdio.h>
+#include <string>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "esp_rom_sys.h"
 #include "esp_log.h"
 #include "esp_check.h"
+#include "esp_err.h"
 
 #include "Sensirion_Drivers/sensirion_i2c_hal.h"
 #include "I2C_Sensors.h"
 #include "Emitter.h"
+#include "SIM7070G.h"
 
 
-#define PIN GPIO_NUM_2 // PCB DEBUG LED
+#define PIN GPIO_NUM_2 // PCB DEBUG LED 
 
 //static const char *TAG = "main";
 
@@ -51,7 +54,54 @@ void SetupTasks()
 
 extern "C" void app_main()
 {
-  SetupTasks(); // Setsup the tasks
+  SetupTasks(); // Setup the tasks
+
+  esp_err_t err = sim7070g::init(115200);
+  if (err != ESP_OK)
+  {
+    printf("SIM init failed: %s\n", esp_err_to_name(err));
+    return;
+  }
+
+  while (1)
+  {
+    err = sim7070g::power_on();
+    if (err != ESP_OK)
+    {
+      printf("SIM power on failed: %s\n", esp_err_to_name(err));
+      return;
+    }
+
+    std::string response;
+
+    printf("Sending AT\n");
+    err = sim7070g::send_command("AT\r\n", response, 1500);
+    if (err == ESP_OK)
+    {
+      printf("AT response:\n%s\n", response.c_str());
+    }
+    else
+    {
+      printf("AT failed: %s\n", esp_err_to_name(err));
+    }
+
+    printf("Sending AT+CPIN?\n");
+    err = sim7070g::send_command("AT+CPIN?\r\n", response, 3000);
+    if (err == ESP_OK)
+    {
+      printf("AT+CPIN? response:\n%s\n", response.c_str());
+    }
+    else
+    {
+      printf("AT+CPIN? failed: %s\n", esp_err_to_name(err));
+    }
+
+    err = sim7070g::power_off();
+    if (err != ESP_OK)
+    {
+      printf("SIM power off failed: %s\n", esp_err_to_name(err));
+    }
+  }
 
   // vTaskDelay(pdMS_TO_TICKS(3000)); // Wait for serial monitor to open
   // sensor_init();
@@ -60,20 +110,24 @@ extern "C" void app_main()
   //xTaskCreate(SEN66_sensor_readings, "SEN66_sensor_readings", 4096, NULL, 5, NULL);
   //xTaskCreate(SFA30_sensor_readings, "SFA30_sensor_readings", 4096, NULL, 5, NULL);
 
-  ESP_ERROR_CHECK(emmitter_init());
-  BoostConverter_enable(false);
-  vTaskDelay(pdMS_TO_TICKS(5000));
-  BoostConverter_enable(true);
+  // ESP_ERROR_CHECK(emmitter_init());
+  // BoostConverter_enable(false);
+  // vTaskDelay(pdMS_TO_TICKS(5000));
+  // BoostConverter_enable(true);
 
-  while (1)
-  {
-    //emitter_enable(1, true);
-    //emitter_enable(8, true);
-    emitter_enable_all(true);
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    emitter_enable_all(false);
-    // emitter_enable(1, false);
-    // emitter_enable(8, false);
-    vTaskDelay(pdMS_TO_TICKS(2000));
-  }
+  // while (1)
+  // {
+  //   //emitter_enable(1, true);
+  //   //emitter_enable(8, true);
+  //   emitter_enable_all(true);
+  //   vTaskDelay(pdMS_TO_TICKS(1000));
+  //   emitter_enable_all(false);
+  //   // emitter_enable(1, false);
+  //   // emitter_enable(8, false);
+  //   vTaskDelay(pdMS_TO_TICKS(2000));
+  // }
+
+
+  
+
 }
