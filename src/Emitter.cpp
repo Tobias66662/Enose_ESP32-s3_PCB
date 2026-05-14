@@ -1,4 +1,5 @@
 #include "driver/ledc.h"
+#include "driver/gpio.h"
 #include "esp_err.h"
 #include <stdint.h>
 #include <stdbool.h>
