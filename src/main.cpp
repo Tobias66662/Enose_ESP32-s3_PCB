@@ -14,7 +14,7 @@
 #include "SIM7070G.h"
 
 
-#define PIN GPIO_NUM_2 // PCB DEBUG LED 
+#define PIN GPIO_NUM_38 // PCB DEBUG LED 
 
 //static const char *TAG = "main";
 
@@ -57,51 +57,288 @@ extern "C" void app_main()
   SetupTasks(); // Setup the tasks
 
   esp_err_t err = sim7070g::init(115200);
+
   if (err != ESP_OK)
   {
-    printf("SIM init failed: %s\n", esp_err_to_name(err));
-    return;
+      printf("SIM init failed: %s\n",
+            esp_err_to_name(err));
+
+      return;
   }
 
   while (1)
   {
-    err = sim7070g::power_on();
-    if (err != ESP_OK)
-    {
-      printf("SIM power on failed: %s\n", esp_err_to_name(err));
-      return;
-    }
+      bool modem_powered_on = false;
+      bool mqtt_connected = false;
 
-    std::string response;
+      printf("\n============================\n");
+      printf("Starting SIM7070G cycle\n");
+      printf("============================\n");
 
-    printf("Sending AT\n");
-    err = sim7070g::send_command("AT\r\n", response, 1500);
-    if (err == ESP_OK)
-    {
-      printf("AT response:\n%s\n", response.c_str());
-    }
-    else
-    {
-      printf("AT failed: %s\n", esp_err_to_name(err));
-    }
+      // =================================================
+      // POWER ON MODEM
+      // =================================================
 
-    printf("Sending AT+CPIN?\n");
-    err = sim7070g::send_command("AT+CPIN?\r\n", response, 3000);
-    if (err == ESP_OK)
-    {
-      printf("AT+CPIN? response:\n%s\n", response.c_str());
-    }
-    else
-    {
-      printf("AT+CPIN? failed: %s\n", esp_err_to_name(err));
-    }
+      err = sim7070g::power_on();
 
-    err = sim7070g::power_off();
-    if (err != ESP_OK)
-    {
-      printf("SIM power off failed: %s\n", esp_err_to_name(err));
-    }
-  }
+      if (err != ESP_OK)
+      {
+          printf("SIM power on failed: %s\n",
+                esp_err_to_name(err));
+
+          goto shutdown;
+      }
+
+      modem_powered_on = true;
+
+      // =================================================
+      // BASIC AT TEST
+      // =================================================
+
+      {
+          std::string response;
+
+          err = sim7070g::send_command(
+              "AT\r\n",
+              response,
+              3000);
+
+          if (err != ESP_OK)
+          {
+              printf("AT failed: %s\n",
+                    esp_err_to_name(err));
+
+              goto shutdown;
+          }
+
+          printf("AT response:\n%s\n",
+                response.c_str());
+      }
+
+      // =================================================
+      // SIM READY CHECK
+      // =================================================
+
+      {
+          std::string response;
+
+          err = sim7070g::send_command(
+              "AT+CPIN?\r\n",
+              response,
+              5000);
+
+          if (err != ESP_OK)
+          {
+              printf("CPIN failed: %s\n",
+                    esp_err_to_name(err));
+
+              goto shutdown;
+          }
+
+          printf("CPIN response:\n%s\n",
+                response.c_str());
+
+          if (response.find("READY")
+              == std::string::npos)
+          {
+              printf("SIM card not ready\n");
+
+              goto shutdown;
+          }
+      }
+
+      // =================================================
+      // NETWORK MODE
+      // =================================================
+
+      err = sim7070g::set_network_mode(1);
+
+      if (err != ESP_OK)
+      {
+          printf("Failed to set CAT-M mode\n");
+
+          goto shutdown;
+      }
+
+      // =================================================
+      // CHECK LTE REGISTRATION
+      // =================================================
+
+      err = sim7070g::check_network_registration();
+
+      if (err != ESP_OK)
+      {
+          printf("LTE registration check failed\n");
+
+          goto shutdown;
+      }
+
+      // =================================================
+      // CHECK PACKET ATTACHMENT
+      // =================================================
+
+      err = sim7070g::check_packet_attachment();
+
+      if (err != ESP_OK)
+      {
+          printf("Packet attachment failed\n");
+
+          goto shutdown;
+      }
+
+      // =================================================
+      // CONFIGURE APN
+      // =================================================
+
+      err = sim7070g::configure_apn();
+
+      if (err != ESP_OK)
+      {
+          printf("APN configuration failed\n");
+
+          goto shutdown;
+      }
+
+      // =================================================
+      // ACTIVATE DATA CONNECTION
+      // =================================================
+
+      err = sim7070g::activate_data_connection();
+
+      if (err != ESP_OK)
+      {
+          printf("Data connection failed\n");
+
+          goto shutdown;
+      }
+
+      printf("Data connection established\n");
+
+      // =================================================
+      // MQTT CONFIGURATION
+      // =================================================
+
+      err = sim7070g::mqtt_configure();
+
+      if (err != ESP_OK)
+      {
+          printf("MQTT configuration failed\n");
+
+          goto shutdown;
+      }
+
+      // =================================================
+      // MQTT CONNECT
+      // =================================================
+
+      err = sim7070g::mqtt_connect();
+
+      if (err != ESP_OK)
+      {
+          printf("MQTT connect failed\n");
+
+          goto shutdown;
+      }
+
+      mqtt_connected = true;
+
+      printf("MQTT connected\n");
+
+      // =================================================
+      // MQTT SUBSCRIBE
+      // =================================================
+
+      err = sim7070g::mqtt_subscribe();
+
+      if (err != ESP_OK)
+      {
+          printf("MQTT subscribe failed\n");
+
+          goto shutdown;
+      }
+
+      printf("MQTT subscribed\n");
+
+      // =================================================
+      // MQTT PUBLISH
+      // =================================================
+
+      err = sim7070g::mqtt_publish(
+          "hello from " +
+          std::string(sim7070g::MQTT_CLIENT_ID));
+
+      if (err != ESP_OK)
+      {
+          printf("MQTT publish failed\n");
+
+          goto shutdown;
+      }
+
+      printf("MQTT publish success\n");
+
+      // =================================================
+      // WAIT FOR INCOMING MQTT MESSAGES
+      // =================================================
+
+      printf("Listening for MQTT messages...\n");
+
+      for (int i = 0; i < 30; ++i)
+      {
+          vTaskDelay(pdMS_TO_TICKS(1000));
+
+          // Optional future improvement:
+          // poll UART here for unsolicited
+          // +SMSUB indications
+      }
+
+  shutdown:
+
+      // =================================================
+      // MQTT DISCONNECT
+      // =================================================
+
+      if (mqtt_connected)
+      {
+          err = sim7070g::mqtt_disconnect();
+
+          if (err != ESP_OK)
+          {
+              printf("MQTT disconnect failed: %s\n",
+                    esp_err_to_name(err));
+          }
+          else
+          {
+              printf("MQTT disconnected\n");
+          }
+      }
+
+      // =================================================
+      // POWER OFF MODEM
+      // =================================================
+
+      if (modem_powered_on)
+      {
+          err = sim7070g::power_off();
+
+          if (err != ESP_OK)
+          {
+              printf("SIM power off failed: %s\n",
+                    esp_err_to_name(err));
+          }
+          else
+          {
+              printf("SIM powered off\n");
+          }
+      }
+
+      // =================================================
+      // SAFE POWER-DOWN WAIT
+      // =================================================
+
+      printf("Waiting 10 seconds before next cycle...\n");
+
+      vTaskDelay(pdMS_TO_TICKS(10000));
+  } // end of while(1)
 
   // vTaskDelay(pdMS_TO_TICKS(3000)); // Wait for serial monitor to open
   // sensor_init();
