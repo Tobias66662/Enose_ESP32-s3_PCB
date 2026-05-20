@@ -13,4 +13,3 @@ esp_err_t power_off();
 esp_err_t send_command(const char *command, std::string &response, uint32_t timeout_ms);
 
 } // namespace sim7070g
-
