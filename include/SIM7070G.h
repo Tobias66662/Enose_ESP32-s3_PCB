@@ -107,4 +107,3 @@ esp_err_t mqtt_subscribe();
 esp_err_t mqtt_publish(const std::string &payload);
 
 } // namespace sim7070g
-

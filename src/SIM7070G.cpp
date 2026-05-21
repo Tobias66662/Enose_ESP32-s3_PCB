@@ -7,6 +7,8 @@
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "I2C_Sensors.h"
+#include "Emitter.h"
 
 namespace {
 
@@ -559,3 +561,22 @@ esp_err_t mqtt_publish(
 }
 
 } // namespace sim7070g
+
+// FreeRTOS task that will control the modem and recive commands form the modem (Central task of the whole program)
+void modem_manager_task(void* parameter)
+{
+  // Initialize modem and necessary variables/parameters here
+  sensor_readings_t i2c_sesor_readings;
+
+  while(1)  // Inifinite loop that waits for an event and then responds
+  {
+
+    // executes when data is available in the sensor_readings_queue
+    if (xQueueReceive(sensor_readings_queue, &i2c_sesor_readings, portMAX_DELAY))
+    {
+      // send "i2c_sesor_readings" to the modem using UART
+    }
+
+  }
+
+}
