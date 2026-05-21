@@ -29,9 +29,9 @@ inline constexpr const char *MQTT_PUBLISH_TOPIC =
     "telescent/deviceA";
 
 // Topic this device subscribes TO
-// "#" = wildcard for everything under telescent/
+// "#" = wildcard for everything under "telescent/". Can be used to look at all messages from all devices (if we make more than 2 :D).
 inline constexpr const char *MQTT_SUBSCRIBE_TOPIC =
-    "telescent/#";
+    "telescent/deviceB";
 
 // Default MQTT QoS
 // 0 = at most once
@@ -60,6 +60,10 @@ esp_err_t send_command(
     std::string &response,
     uint32_t timeout_ms);
 
+// Read any unsolicited modem response (URC) or pending data from UART.
+// Returns ESP_OK and fills `response` when data was received, or
+// ESP_ERR_TIMEOUT if no data arrived within `timeout_ms` milliseconds.
+esp_err_t get_response(std::string &response, uint32_t timeout_ms);
 // =====================================================
 // NETWORK / LTE
 // =====================================================

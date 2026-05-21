@@ -312,6 +312,18 @@ esp_err_t send_command(
         &response);
 }
 
+// Read any pending data from the modem UART (URC / unsolicited messages).
+esp_err_t get_response(std::string &response, uint32_t timeout_ms)
+{
+    // read_response returns true when data was received
+    if (read_response(response, timeout_ms))
+    {
+        return ESP_OK;
+    }
+
+    return ESP_ERR_TIMEOUT;
+}
+
 // =====================================================
 // NETWORK
 // =====================================================
@@ -369,6 +381,10 @@ esp_err_t mqtt_configure()
 {
     esp_err_t err;
 
+    // -------------------------------------------------
+    // Configure MQTT broker
+    // -------------------------------------------------
+
     std::string broker_cmd =
         "AT+SMCONF=\"URL\",\"" +
         std::string(MQTT_BROKER) +
@@ -385,14 +401,38 @@ esp_err_t mqtt_configure()
         return err;
     }
 
+    // -------------------------------------------------
+    // Configure MQTT client ID
+    // -------------------------------------------------
+
     std::string client_cmd =
         "AT+SMCONF=\"CLIENTID\",\"" +
         std::string(MQTT_CLIENT_ID) +
         "\"\r\n";
 
-    return send_checked_command(
+    err = send_checked_command(
         client_cmd,
         10000);
+
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    // -------------------------------------------------
+    // Enable clean session
+    // -------------------------------------------------
+
+    err = send_checked_command(
+        "AT+SMCONF=\"CLEANSS\",1\r\n",
+        10000);
+
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    return ESP_OK;
 }
 
 esp_err_t mqtt_connect()
@@ -418,9 +458,34 @@ esp_err_t mqtt_subscribe()
         std::to_string(MQTT_QOS) +
         "\r\n";
 
-    return send_checked_command(
-        cmd,
-        10000);
+    std::string response;
+
+    const bool got_response =
+        send_raw_command(
+            cmd.c_str(),
+            response,
+            10000);
+
+    printf("\nSUB CMD: %s", cmd.c_str());
+    printf("SUB RESPONSE:\n%s\n",
+           response.c_str());
+
+    if (!got_response)
+    {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    if (response_contains(response, "OK"))
+    {
+        return ESP_OK;
+    }
+
+    if (response_contains(response, "ERROR"))
+    {
+        return ESP_ERR_INVALID_RESPONSE;
+    }
+
+    return ESP_ERR_TIMEOUT;
 }
 
 esp_err_t mqtt_publish(
@@ -437,20 +502,60 @@ esp_err_t mqtt_publish(
 
     std::string response;
 
-    esp_err_t err =
-        send_checked_command(
-            cmd,
-            10000,
-            &response);
+    // -------------------------------------------------
+    // STEP 1:
+    // Send SMPUB command
+    // Expect '>' prompt
+    // -------------------------------------------------
 
-    if (err != ESP_OK)
+    const bool got_response =
+        send_raw_command(
+            cmd.c_str(),
+            response,
+            5000);
+
+    printf("\nCMD: %s", cmd.c_str());
+    printf("RSP:\n%s\n", response.c_str());
+
+    if (!got_response)
     {
-        return err;
+        return ESP_ERR_TIMEOUT;
     }
 
-    return send_checked_command(
-        payload,
-        10000);
+    // IMPORTANT:
+    // Expect payload prompt
+    if (!response_contains(response, ">"))
+    {
+        return ESP_ERR_INVALID_RESPONSE;
+    }
+
+    // -------------------------------------------------
+    // STEP 2:
+    // Send payload
+    // -------------------------------------------------
+
+    response.clear();
+
+    const bool payload_response =
+        send_raw_command(
+            payload.c_str(),
+            response,
+            10000);
+
+    printf("PAYLOAD: %s\n", payload.c_str());
+    printf("RSP:\n%s\n", response.c_str());
+
+    if (!payload_response)
+    {
+        return ESP_ERR_TIMEOUT;
+    }
+
+    if (response_contains(response, "OK"))
+    {
+        return ESP_OK;
+    }
+
+    return ESP_ERR_INVALID_RESPONSE;
 }
 
 } // namespace sim7070g
