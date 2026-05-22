@@ -250,16 +250,39 @@ extern "C" void app_main()
       // ACTIVATE DATA CONNECTION
       // =================================================
 
-      err = sim7070g::activate_data_connection();
-
-      if (err != ESP_OK)
+      // Try activating the data connection up to 5 times before giving up
       {
-          printf("Data connection failed\n");
+          const int kMaxDataAttempts = 5;
+          const TickType_t kRetryDelay = pdMS_TO_TICKS(2000);
+          int attempt = 0;
 
-          goto shutdown;
+          for (attempt = 1; attempt <= kMaxDataAttempts; ++attempt)
+          {
+              err = sim7070g::activate_data_connection();
+
+              if (err == ESP_OK)
+              {
+                  break;
+              }
+
+              printf("Data connection attempt %d/%d failed: %s\n",
+                     attempt,
+                     kMaxDataAttempts,
+                     esp_err_to_name(err));
+
+              vTaskDelay(kRetryDelay);
+          }
+
+          if (err != ESP_OK)
+          {
+              printf("Data connection failed after %d attempts\n",
+                     kMaxDataAttempts);
+
+              goto shutdown;
+          }
+
+          printf("Data connection established\n");
       }
-
-      printf("Data connection established\n");
 
       // =================================================
       // MQTT CONFIGURATION
@@ -295,6 +318,7 @@ extern "C" void app_main()
       // MQTT SUBSCRIBE
       // =================================================
 
+      vTaskDelay(pdMS_TO_TICKS(1000));
       err = sim7070g::mqtt_subscribe();
 
       if (err != ESP_OK)
@@ -329,13 +353,19 @@ extern "C" void app_main()
 
       printf("Listening for MQTT messages...\n");
 
-      for (int i = 0; i < 30; ++i)
+      for (int i = 0; i < 60; ++i)
       {
-          vTaskDelay(pdMS_TO_TICKS(1000));
+          // Poll modem UART for unsolicited responses (URCs)
+          std::string urc;
 
-          // Optional future improvement:
-          // poll UART here for unsolicited
-          // +SMSUB indications
+          esp_err_t r = sim7070g::get_response(urc, 500);
+
+          if (r == ESP_OK)
+          {
+              printf("URC:\n%s\n", urc.c_str());
+          }
+
+          vTaskDelay(pdMS_TO_TICKS(1000));
       }
 
   shutdown:
@@ -359,6 +389,7 @@ extern "C" void app_main()
           }
       }
 
+      vTaskDelay(pdMS_TO_TICKS(3000)); // delay so modem has time to unsubscribe and disconnect before powering off
       // =================================================
       // POWER OFF MODEM
       // =================================================
