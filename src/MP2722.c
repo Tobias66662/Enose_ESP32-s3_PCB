@@ -116,7 +116,7 @@ void MP2722_interruptInit()
     };
   gpio_config(&GPIO_config);
 
-  gpio_install_isr_service(0); // set up the interrupt
+  //gpio_install_isr_service(0); // set up the interrupt
   gpio_isr_handler_add(INT_PIN, MP2722_isr, NULL); // Attach ISR function to INT_PIN
 
   xTaskCreate(MP2722_interruptTask, "mp2722_int_task", 2048, NULL, 10, NULL); // Create the deferred interrupt handle task

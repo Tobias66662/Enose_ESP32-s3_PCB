@@ -14,13 +14,59 @@
 #include "SIM7070G.h"
 
 
-#define PIN GPIO_NUM_38 // PCB DEBUG LED 
+#define PIN GPIO_NUM_38 // PCB DEBUG LED
+//#define BOOT_BUTTON GPIO_NUM_0;
+constexpr gpio_num_t BOOT_BUTTON = GPIO_NUM_0;
+
+static SemaphoreHandle_t Boot_Semaphore; // Semaphore used in the ISR
 
 //static const char *TAG = "main";
 
-// Function
+// Function declarations
 void SetupTasks();
+void boot_button_InterruptTask(void* parameter);
 
+// Interupt service routine (deferred interrupt)
+static void IRAM_ATTR boot_button_isr(void *arg)
+{
+  BaseType_t higherPriorityTaskWoken = pdFALSE;
+
+  xSemaphoreGiveFromISR(Boot_Semaphore, &higherPriorityTaskWoken);
+
+  // If xSemaphoreGiveFromISR() sets higherPriorityTaskWoken = pdTRUE then a context switch is requested before the interrupt is exited.
+  if(higherPriorityTaskWoken)
+  {
+    portYIELD_FROM_ISR();
+  }
+}
+
+void interrupt_init()
+{
+  Boot_Semaphore = xSemaphoreCreateBinary();
+
+  gpio_config_t GPIO_config = {
+    .pin_bit_mask = (1ULL << BOOT_BUTTON),
+    .mode = GPIO_MODE_INPUT,
+    .pull_up_en = GPIO_PULLUP_ENABLE,
+    .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    .intr_type = GPIO_INTR_NEGEDGE        // Trigger on falling edge (active low)
+    };
+  gpio_config(&GPIO_config);
+
+  gpio_install_isr_service(1); // set up the interrupt
+  gpio_isr_handler_add(BOOT_BUTTON, boot_button_isr, NULL); // Attach ISR function to INT_PIN
+
+  xTaskCreate(boot_button_InterruptTask, "boot_button_InterruptTask", 2048, NULL, 10, NULL); // Create the deferred interrupt handle task
+}
+
+void boot_button_InterruptTask(void* parameter)
+{
+  if (xSemaphoreTake(Boot_Semaphore, portMAX_DELAY))
+  {
+    // code here runs whenever the boot button is pressed
+    sim7070g::power_off();
+  }
+}
 
 // Task: Blinks LED when resetting
 void BOOT_LED(void *parameter)
@@ -55,6 +101,7 @@ void SetupTasks()
 extern "C" void app_main()
 {
   SetupTasks(); // Setup the tasks
+  interrupt_init(); // setup task and ISR for the boot button
 
   esp_err_t err = sim7070g::init(115200);
 
@@ -365,6 +412,6 @@ extern "C" void app_main()
   // }
 
 
-  
+
 
 }
