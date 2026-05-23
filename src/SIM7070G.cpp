@@ -10,6 +10,8 @@
 #include "I2C_Sensors.h"
 #include "Emitter.h"
 
+QueueHandle_t uart_receive_queue = nullptr;
+
 namespace {
 
 constexpr uart_port_t kModemUart = UART_NUM_1;
@@ -24,6 +26,8 @@ constexpr uint32_t kInterCommandDelayMs = 250;
 
 esp_err_t modem_uart_init(uint32_t baud_rate)
 {
+
+
     uart_config_t config = {};
 
     config.baud_rate = static_cast<int>(baud_rate);
@@ -273,15 +277,17 @@ namespace sim7070g {
 
 esp_err_t init(uint32_t baud_rate)
 {
-    esp_err_t err =
-        modem_power_pin_init();
+  uart_receive_queue = xQueueCreate(5, sizeof(classifier_label_t));
 
-    if (err != ESP_OK)
-    {
-        return err;
-    }
+  esp_err_t err =
+    modem_power_pin_init();
 
-    return modem_uart_init(baud_rate);
+  if (err != ESP_OK)
+  {
+    return err;
+  }
+
+  return modem_uart_init(baud_rate);
 }
 
 esp_err_t power_on()
@@ -562,19 +568,66 @@ esp_err_t mqtt_publish(
 
 } // namespace sim7070g
 
+scent_label_t parse_scent_label(const char *label)
+{
+  if (strcmp(label, "flower") == 0)
+  {
+    return SCENT_FLOWER;
+  }
+
+  if (strcmp(label, "pepper") == 0)
+  {
+    return SCENT_PEPPER;
+  }
+
+
+  return SCENT_UNKNOWN;
+  }
+
+
 // FreeRTOS task that will control the modem and recive commands form the modem (Central task of the whole program)
-void modem_manager_task(void* parameter)
+void modem_transmit_task(void* parameter)
 {
   // Initialize modem and necessary variables/parameters here
-  sensor_readings_t i2c_sesor_readings;
+  classifier_label_t detected_label = {};
 
   while(1)  // Inifinite loop that waits for an event and then responds
   {
-
-    // executes when data is available in the sensor_readings_queue
-    if (xQueueReceive(sensor_readings_queue, &i2c_sesor_readings, portMAX_DELAY))
+    // executes when data is available in the classifier_label_queue
+    if (xQueueReceive(classifier_label_queue, &detected_label, portMAX_DELAY))
     {
-      // send "i2c_sesor_readings" to the modem using UART
+      // send "label" to the modem using UART
+      // make a function for it like: "sim7070g::send_label(detected_label.label):"
+    }
+
+  }
+
+}
+
+void modem_receive_task(void* parameter)
+{
+  // Initialize modem and necessary variables/parameters here
+  classifier_label_t received_label = {};
+
+  while(1)  // Inifinite loop that waits for an event and then responds
+  {
+    // executes when data is available in the uart_receive_queue
+    if (xQueueReceive(uart_receive_queue, &received_label, portMAX_DELAY))
+    {
+      switch (parse_scent_label(received_label.label))
+      {
+      case SCENT_FLOWER:
+        // send specific commands to emmiter to produce scent
+        break;
+
+      case SCENT_PEPPER:
+        // send specific commands to emmiter to produce scent
+        break;
+
+      default:
+        ESP_LOGW("SIM7070G", "Unknown label received: %s", received_label.label);
+        break;
+      }
     }
 
   }

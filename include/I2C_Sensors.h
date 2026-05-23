@@ -5,6 +5,10 @@
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     // Readings from SEN66
     float pm1p0;
@@ -31,3 +35,7 @@ void initalize_SFA30();
 void SEN66_sensor_readings(void *parameter);
 void SFA30_sensor_readings(void *parameter);
 void sensor_fan_enable(bool enable);
+
+#ifdef __cplusplus
+}
+#endif

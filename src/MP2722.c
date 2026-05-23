@@ -98,7 +98,6 @@ static void MP2722_interruptTask(void *parameter)
           ESP_LOGI(TAG, "Battery connected");
         }
       }
-
     }
   }
 }
@@ -121,7 +120,6 @@ void MP2722_interruptInit()
 
   xTaskCreate(MP2722_interruptTask, "mp2722_int_task", 2048, NULL, 10, NULL); // Create the deferred interrupt handle task
 }
-
 
 //-------------- Not interrupt stuff ----------------//
 void MP2722_init()

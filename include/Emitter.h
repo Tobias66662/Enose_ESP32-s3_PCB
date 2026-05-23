@@ -5,6 +5,10 @@
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum
 {
   EMITTER_CMD_ENABLE_BOOST,     // Enable boost converter
@@ -32,3 +36,7 @@ void emitter_enable(uint8_t channel, bool enable);
 void emitter_enable_all(bool enable);
 void BoostConverter_enable(bool enable);
 void emitter_task(void *parameter);
+
+#ifdef __cplusplus
+}
+#endif

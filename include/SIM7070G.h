@@ -4,6 +4,15 @@
 #include <string>
 
 #include "esp_err.h"
+#include "Classifier.h"
+
+typedef enum
+{
+  SCENT_UNKNOWN = 0,
+  SCENT_FLOWER,
+  SCENT_PEPPER,
+  SCENT_EMPTY
+} scent_label_t;
 
 namespace sim7070g {
 // =====================================================

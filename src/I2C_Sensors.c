@@ -87,6 +87,8 @@ void sensor_readings_task(void* parameter)
   // Wait for first measurement to be ready
   vTaskDelay(pdMS_TO_TICKS(1000));
 
+  TickType_t last_awake_tick_count = xTaskGetTickCount(); // current tick count of the timer
+
   while(1)
   {
     sensor_readings_t reading = {0};
@@ -139,9 +141,8 @@ void sensor_readings_task(void* parameter)
       reading.sfa30_humidity = sfa30_humidity / 100.0f;
       reading.sfa30_temperature = sfa30_temperature / 200.0f;
     }
-
-    vTaskDelay(pdMS_TO_TICKS(1000)); // wait for readings to compleate
-
+    
+    ESP_LOGI("Sensors", "Sensor readings sent to Queue");
     //--------- Send Reading to Queue -------------
     if (xQueueSend(sensor_readings_queue, &reading, pdMS_TO_TICKS(100)) == pdFALSE)
     {
@@ -165,7 +166,8 @@ void sensor_readings_task(void* parameter)
       reading.sfa30_humidity,
       reading.sfa30_temperature);
 
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    // Ensure that 1 second passes between every reading
+    vTaskDelayUntil(&last_awake_tick_count, pdMS_TO_TICKS(1000)); // This function updates "last_awake_tick_count" to equal the current tick count when finishing wait
   }
 
 }
