@@ -9,8 +9,9 @@
 typedef enum
 {
   SCENT_UNKNOWN = 0,
-  SCENT_FLOWER,
-  SCENT_PEPPER,
+    SCENT_CINNAMON,
+    SCENT_BANANA,
+    SCENT_COCONUT,
   SCENT_EMPTY
 } scent_label_t;
 
@@ -54,6 +55,14 @@ inline constexpr uint8_t MQTT_QOS = 1;
 
 // Configures the modem UART and prepares the power-key GPIO.
 esp_err_t init(uint32_t baud_rate = 115200);
+
+// Runs the one-time modem bring-up flow:
+// power on, AT test, network setup, APN, data session, MQTT config and subscribe.
+esp_err_t start_session();
+
+// Starts the modem worker tasks that publish classifier labels and
+// dispatch incoming MQTT payloads / URCs.
+esp_err_t start_tasks();
 
 // Pulses the modem power key to turn on the SIM7070G
 // and waits until it responds with 'OK' to AT.
