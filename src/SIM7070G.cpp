@@ -12,7 +12,7 @@
 #include "I2C_Sensors.h"
 #include "Emitter.h"
 
-QueueHandle_t uart_receive_queue = nullptr;
+QueueHandle_t modem_label_queue  = nullptr;
 
 namespace {
 
@@ -409,11 +409,11 @@ namespace sim7070g {
 
 esp_err_t init(uint32_t baud_rate)
 {
-    uart_receive_queue = xQueueCreate(5, sizeof(classifier_label_t));
+    modem_label_queue = xQueueCreate(5, sizeof(scent_label_t));
 
-    if (uart_receive_queue == nullptr)
+    if (modem_label_queue == nullptr)
     {
-            return ESP_ERR_NO_MEM;
+      return ESP_ERR_NO_MEM;
     }
 
   esp_err_t err =
@@ -434,7 +434,7 @@ esp_err_t start_session()
 
 esp_err_t start_tasks()
 {
-    if (classifier_label_queue == nullptr || uart_receive_queue == nullptr)
+    if (classifier_label_queue == nullptr || modem_label_queue == nullptr)
     {
         return ESP_ERR_INVALID_STATE;
     }
@@ -761,59 +761,85 @@ esp_err_t mqtt_publish(
 
 namespace {
 
+
 scent_label_t parse_scent_label(const char *label)
 {
-    if (label == nullptr)
-    {
-        return SCENT_UNKNOWN;
-    }
-
-    if (strcmp(label, "cinnamon") == 0)
+  if (label == nullptr)
   {
-        return SCENT_CINNAMON;
+    return SCENT_UNKNOWN;
   }
 
-    if (strcmp(label, "banana") == 0)
+  if (strcmp(label, "cinnamon") == 0)
   {
-        return SCENT_BANANA;
-    }
-
-    if (strcmp(label, "coconut") == 0)
-    {
-        return SCENT_COCONUT;
+    return SCENT_CINNAMON;
   }
 
-    if (strcmp(label, "empty") == 0)
-    {
-        return SCENT_EMPTY;
-    }
+  if (strcmp(label, "banana") == 0)
+  {
+    return SCENT_BANANA;
+  }
 
+  if (strcmp(label, "coconut") == 0)
+  {
+    return SCENT_COCONUT;
+  }
+
+  if (strcmp(label, "empty") == 0)
+  {
+    return SCENT_EMPTY;
+  }
 
   return SCENT_UNKNOWN;
+}
+
+scent_label_t parse_scent_label_from_response(const std::string &response)
+{
+  if (response.find("cinnamon") != std::string::npos) // Check if the response sting contains "cinnamon", retures npos if it doesen't
+  {
+    return SCENT_CINNAMON;
   }
+
+  if (response.find("banana") != std::string::npos)
+  {
+    return SCENT_BANANA;
+  }
+
+  if (response.find("coconut") != std::string::npos)
+  {
+    return SCENT_COCONUT;
+  }
+
+  if (response.find("empty") != std::string::npos)
+  {
+    return SCENT_EMPTY;
+  }
+
+  return SCENT_UNKNOWN;
+}
 
 
 // FreeRTOS task that publishes classifier labels to MQTT.
 void modem_transmit_task(void* parameter)
 {
-    (void)parameter;
-
+  (void)parameter;
   classifier_label_t detected_label = {};
 
-    while (1)
+  while(1)  // Inifinite loop that waits for an event and then responds
   {
-        if (xQueueReceive(classifier_label_queue, &detected_label, portMAX_DELAY) == pdTRUE)
+    // executes when data is available in the classifier_label_queue
+    if (xQueueReceive(classifier_label_queue, &detected_label, portMAX_DELAY))
     {
-            esp_err_t err = sim7070g::mqtt_publish(detected_label.label);
+      // send "label" to the modem using UART
+      esp_err_t err = sim7070g::mqtt_publish(detected_label.label);
 
-            if (err != ESP_OK)
-            {
-                ESP_LOGW("SIM7070G", "MQTT publish failed for %s: %s", detected_label.label, esp_err_to_name(err));
-            }
-            else
-            {
-                ESP_LOGI("SIM7070G", "Published label: %s", detected_label.label);
-            }
+      if (err != ESP_OK)
+      {
+        ESP_LOGW("SIM7070G", "MQTT publish failed for %s: %s", detected_label.label, esp_err_to_name(err));
+      }
+      else
+      {
+        ESP_LOGI("SIM7070G", "Published label: %s", detected_label.label);
+      }
     }
 
   }
@@ -823,67 +849,66 @@ void modem_transmit_task(void* parameter)
 // Polls modem UART, extracts known labels from URCs, and forwards them to the receive queue.
 void modem_uart_reader_task(void *parameter)
 {
-    (void)parameter;
+  (void)parameter;
 
-    while (1)
+  while (1)
+  {
+    std::string response;
+    esp_err_t err = sim7070g::get_response(response, 1000); // Gets the raw string response from the UART buffer
+    if (err != ESP_OK)
     {
-        std::string response;
-        esp_err_t err = sim7070g::get_response(response, 1000);
-
-        if (err != ESP_OK)
-        {
-            continue;
-        }
-
-        classifier_label_t received_label = {};
-
-        if (!extract_label_from_response(response, received_label))
-        {
-            printf("URC:\n%s\n", response.c_str());
-            continue;
-        }
-
-        if (xQueueSend(uart_receive_queue, &received_label, pdMS_TO_TICKS(100)) == pdFALSE)
-        {
-            ESP_LOGW("SIM7070G", "UART receive queue full");
-        }
+      continue;
     }
+
+    scent_label_t received_label = parse_scent_label_from_response(response); // Check for labels in the response string
+
+    if (received_label == SCENT_UNKNOWN)
+    {
+      printf("URC:\n%s\n", response.c_str());
+      continue;
+    }
+
+    if (xQueueSend(modem_label_queue, &received_label, pdMS_TO_TICKS(100)) == pdFALSE)
+    {
+      ESP_LOGW("SIM7070G", "UART receive queue full");
+    }
+  }
 }
 
 // Handles parsed incoming labels coming from the modem UART reader task.
 void modem_receive_task(void* parameter)
 {
-    (void)parameter;
+  (void)parameter;
+  scent_label_t received_label = SCENT_UNKNOWN;
 
-  classifier_label_t received_label = {};
-
-    while (1)
+  while(1)  // Inifinite loop that waits for an event and then responds
   {
-        if (xQueueReceive(uart_receive_queue, &received_label, portMAX_DELAY) == pdTRUE)
+    // executes when data is available in the modem_label_queue
+    if (xQueueReceive(modem_label_queue, &received_label, portMAX_DELAY))
     {
-      switch (parse_scent_label(received_label.label))
+      switch (received_label)
       {
       case SCENT_CINNAMON:
-                ESP_LOGI("SIM7070G", "Received cinnamon command");
-                // Hook emitter commands here when a mapping is decided.
+        ESP_LOGI("SIM7070G", "Received cinnamon command");
+        // send specific commands to emmiter to produce scent
         break;
 
       case SCENT_BANANA:
-                ESP_LOGI("SIM7070G", "Received banana command");
-                // Hook emitter commands here when a mapping is decided.
-                break;
+        ESP_LOGI("SIM7070G", "Received banana command");
+        // send specific commands to emmiter to produce scent
+        break;
 
-            case SCENT_COCONUT:
-                ESP_LOGI("SIM7070G", "Received coconut command");
-                // Hook emitter commands here when a mapping is decided.
-                break;
+      case SCENT_COCONUT:
+        ESP_LOGI("SIM7070G", "Received coconut command");
+        // send specific commands to emmiter to produce scent
+        break;
 
-            case SCENT_EMPTY:
-                ESP_LOGI("SIM7070G", "Received empty command");
+      case SCENT_EMPTY:
+        ESP_LOGI("SIM7070G", "Received empty command");
         break;
 
       default:
-        ESP_LOGW("SIM7070G", "Unknown label received: %s", received_label.label);
+        ESP_LOGW("SIM7070G", "Unknown label received: %d", received_label);
         break;
       }
     }
@@ -891,5 +916,6 @@ void modem_receive_task(void* parameter)
   }
 
 }
+
 
 } // namespace

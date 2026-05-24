@@ -9,9 +9,9 @@
 typedef enum
 {
   SCENT_UNKNOWN = 0,
-    SCENT_CINNAMON,
-    SCENT_BANANA,
-    SCENT_COCONUT,
+  SCENT_CINNAMON,
+  SCENT_BANANA,
+  SCENT_COCONUT,
   SCENT_EMPTY
 } scent_label_t;
 
