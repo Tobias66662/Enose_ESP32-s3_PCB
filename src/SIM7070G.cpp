@@ -278,7 +278,7 @@ bool read_response(
 
         if (received > 0)
         {
-          ESP_LOGI("SIM7070G", "response detected");
+          //ESP_LOGI("SIM7070G", "response detected");
           response.append(
               reinterpret_cast<char *>(chunk),
               received);
@@ -927,7 +927,7 @@ void modem_uart_reader_task(void *parameter)
     esp_err_t err = sim7070g::get_response(response, 1000); // Gets the raw string response from the UART buffer
     if (err != ESP_OK)
     {
-      ESP_LOGE("sim7070G", "get_response returned an error");
+      //ESP_LOGE("sim7070G", "get_response returned an error");
       continue;
     }
     ESP_LOGE("sim7070G", "get_response did not get error");
@@ -976,7 +976,8 @@ void modem_receive_task(void* parameter)
         // send specific commands to emmiter to produce scent
         //emitter_cmd = {.type = EMITTER_CMD_SET_CHANNELS, .PWM_channel_mask = 0b00000001, .duration_ms = 3000}; // Turn on emitter 1 for 1 second
         emitter_cmd.type = EMITTER_CMD_SET_CHANNELS;
-        emitter_cmd.PWM_channel_mask = 0b00000001;
+        //emitter_cmd.PWM_channel_mask = 0b00000001;
+        emitter_cmd.PWM_channel_mask = 0b11111111;
         emitter_cmd.duration_ms = 5000;
 
         xQueueSend(emitter_cmd_queue, &emitter_cmd, pdMS_TO_TICKS(100));

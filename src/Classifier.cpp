@@ -165,7 +165,7 @@ const char *runInference(float *confidenceOut)
     }
   }
 
-  //ESP_LOGI(kTag, "Prediction: %s (%.3f)", bestLabel, maxValue);
+  ESP_LOGI(kTag, "Prediction: %s (%.3f)", bestLabel, maxValue);
 
   if (confidenceOut != nullptr)
   {
@@ -189,25 +189,25 @@ const char *applyConsensusLabel(const char *predictionLabel, float score)
       ? recentPredictionScoreSum / static_cast<float>(recentPredictionScoreCount)
       : 0.0f;
 
-    // ESP_LOGI(
-    //   kTag,
-    //   "No consensus yet -> output empty (count=%u/%u, avg_last_%u=%.3f, threshold=%.3f)",
-    //   consecutivePredictionCount,
-    //   kRequiredConsecutivePredictions,
-    //   kRequiredConsecutivePredictions,
-    //   averageScore,
-    //   kRequiredAverageConfidence);
+    ESP_LOGI(
+      kTag,
+      "No consensus yet -> output empty (count=%u/%u, avg_last_%u=%.3f, threshold=%.3f)",
+      consecutivePredictionCount,
+      kRequiredConsecutivePredictions,
+      kRequiredConsecutivePredictions,
+      averageScore,
+      kRequiredAverageConfidence);
 
     return "empty";
   }
 
   const float averageScore = recentPredictionScoreSum / static_cast<float>(recentPredictionScoreCount);
-  // ESP_LOGI(
-  //   kTag,
-  //   "Consensus label: %s avg=%.3f threshold=%.3f",
-  //   predictionLabel,
-  //   averageScore,
-  //   kRequiredAverageConfidence);
+  ESP_LOGI(
+    kTag,
+    "Consensus label: %s avg=%.3f threshold=%.3f",
+    predictionLabel,
+    averageScore,
+    kRequiredAverageConfidence);
 
   return predictionLabel;
 }
@@ -243,7 +243,7 @@ void classifierTask(void *parameter)
         const char *bestLabel = runInference(&confidence); //run classifier on the newest buffer contents
         const char *resolvedLabel = applyConsensusLabel(bestLabel, confidence); // apply consensus filtering
 
-        //ESP_LOGI(kTag, "Resolved label: %s", resolvedLabel);
+        ESP_LOGI(kTag, "Resolved label: %s", resolvedLabel);
 
         if (strcmp(resolvedLabel, "empty") != 0) // don't sent to queue if label contains "empty"
         {
@@ -252,6 +252,7 @@ void classifierTask(void *parameter)
           if ((now - last_label_send_time) >= pdMS_TO_TICKS(30000)) // Only add new lable to queue if 30 seconds have pased since last label was added
           {
             // store the string pointed to by *resolvedLabel in a custom type that can be added to the queue
+            ESP_LOGI(kTag, "%s label sent to classifier_label_queue", resolvedLabel);
             classifier_label_t resolved_label = {};
             strncpy(resolved_label.label, resolvedLabel, sizeof(resolved_label.label) - 1);
             resolved_label.label[sizeof(resolved_label.label) - 1] = '\0';
