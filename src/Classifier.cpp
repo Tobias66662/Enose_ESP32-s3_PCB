@@ -251,6 +251,7 @@ void classifierTask(void *parameter)
 
           if ((now - last_label_send_time) >= pdMS_TO_TICKS(30000)) // Only add new lable to queue if 30 seconds have pased since last label was added
           {
+            ESP_LOGI(kTag, "======= RESOLVED LABEL SENT TO QUEUE=======");
             // store the string pointed to by *resolvedLabel in a custom type that can be added to the queue
             ESP_LOGI(kTag, "%s label sent to classifier_label_queue", resolvedLabel);
             classifier_label_t resolved_label = {};
