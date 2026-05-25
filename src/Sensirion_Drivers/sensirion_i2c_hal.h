@@ -61,6 +61,8 @@ int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx);
  */
 esp_err_t sensirion_i2c_hal_init(uint8_t sda_pin, uint8_t scl_pin);
 
+i2c_master_bus_handle_t sensirion_i2c_hal_get_bus_handle(void);
+
 /**
  * Release all resources initialized by sensirion_i2c_hal_init().
  */

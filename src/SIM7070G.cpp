@@ -880,9 +880,11 @@ void modem_receive_task(void* parameter)
 {
   (void)parameter;
   scent_label_t received_label = SCENT_UNKNOWN;
+  emitter_cmd_t emitter_cmd = {};
 
   while(1)  // Inifinite loop that waits for an event and then responds
   {
+    emitter_cmd = {};
     // executes when data is available in the modem_label_queue
     if (xQueueReceive(modem_label_queue, &received_label, portMAX_DELAY))
     {
@@ -891,16 +893,32 @@ void modem_receive_task(void* parameter)
       case SCENT_CINNAMON:
         ESP_LOGI("SIM7070G", "Received cinnamon command");
         // send specific commands to emmiter to produce scent
+        //emitter_cmd = {.type = EMITTER_CMD_SET_CHANNELS, .PWM_channel_mask = 0b00000001, .duration_ms = 3000}; // Turn on emitter 1 for 1 second
+        emitter_cmd.type = EMITTER_CMD_SET_CHANNELS;
+        emitter_cmd.PWM_channel_mask = 0b00000001;
+        emitter_cmd.duration_ms = 5000;
+
+        xQueueSend(emitter_cmd_queue, &emitter_cmd, pdMS_TO_TICKS(100));
         break;
 
       case SCENT_BANANA:
         ESP_LOGI("SIM7070G", "Received banana command");
         // send specific commands to emmiter to produce scent
+        emitter_cmd.type = EMITTER_CMD_SET_CHANNELS;
+        emitter_cmd.PWM_channel_mask = 0b00000010;
+        emitter_cmd.duration_ms = 5000;
+
+        xQueueSend(emitter_cmd_queue, &emitter_cmd, pdMS_TO_TICKS(100));
         break;
 
       case SCENT_COCONUT:
         ESP_LOGI("SIM7070G", "Received coconut command");
         // send specific commands to emmiter to produce scent
+        emitter_cmd.type = EMITTER_CMD_SET_CHANNELS;
+        emitter_cmd.PWM_channel_mask = 0b00000100;
+        emitter_cmd.duration_ms = 5000;
+
+        xQueueSend(emitter_cmd_queue, &emitter_cmd, pdMS_TO_TICKS(100));
         break;
 
       case SCENT_EMPTY:
@@ -909,7 +927,8 @@ void modem_receive_task(void* parameter)
 
       default:
         ESP_LOGW("SIM7070G", "Unknown label received: %d", received_label);
-        break;
+        continue;
+        //break;
       }
     }
 

@@ -13,11 +13,11 @@
 
 #define I2C_SDA_GPIO      GPIO_NUM_18
 #define I2C_SCL_GPIO      GPIO_NUM_8
-#define FAN_PIN           GPIO_NUM_16
+//#define FAN_PIN           GPIO_NUM_16
 
 QueueHandle_t sensor_readings_queue = NULL;
 
-void sensor_fan_enable(bool enable);
+//void sensor_fan_enable(bool enable);
 void sensor_readings_task(void *parameter);
 
 void sensor_init()
@@ -29,11 +29,11 @@ void sensor_init()
     return;
   }
 
-  gpio_set_direction(FAN_PIN, GPIO_MODE_OUTPUT); // Configure fan pin
-  sensor_fan_enable(false);  // Ensure fan is off on startup
+  //gpio_set_direction(FAN_PIN, GPIO_MODE_OUTPUT); // Configure fan pin
+  //sensor_fan_enable(false);  // Ensure fan is off on startup
 
   sensor_readings_queue = xQueueCreate(5, sizeof(sensor_readings_t)); // creates queue that can store 5 commands
-  xTaskCreate(sensor_readings_task, "sensor_task", 4096, sensor_readings_queue, 5, NULL); // Creates sensor_readings_task with priority 5 and with 4096 bytes on the stack allocated to it (might be too little)
+  //xTaskCreate(sensor_readings_task, "sensor_task", 4096, sensor_readings_queue, 5, NULL); // Creates sensor_readings_task with priority 5 and with 4096 bytes on the stack allocated to it (might be too little)
 
 }
 
@@ -141,7 +141,7 @@ void sensor_readings_task(void* parameter)
       reading.sfa30_humidity = sfa30_humidity / 100.0f;
       reading.sfa30_temperature = sfa30_temperature / 200.0f;
     }
-    
+
     ESP_LOGI("Sensors", "Sensor readings sent to Queue");
     //--------- Send Reading to Queue -------------
     if (xQueueSend(sensor_readings_queue, &reading, pdMS_TO_TICKS(100)) == pdFALSE)
@@ -149,22 +149,22 @@ void sensor_readings_task(void* parameter)
       ESP_LOGW("Sensors", "Sensor readings queue full");
     }
 
-    //--------- LOG reading (for testing purposes) ------------- (Comment this out when using the cellular modem)
-    ESP_LOGI("SEN66", "PM1: %.1f µg/m³, PM2.5: %.1f µg/m³, PM4: %.1f µg/m³, PM10: %.1f µg/m³, Humidity: %.1f %%, Temp: %.1f °C, CO2: %u ppm, VOC: %.1f, NOX: %.1f",
-      reading.pm1p0,
-      reading.pm2p5,
-      reading.pm4p0,
-      reading.pm10p0,
-      reading.sen66_humidity,
-      reading.sen66_temperature,
-      reading.co2,
-      reading.voc_index,
-      reading.nox_index);
+    // //--------- LOG reading (for testing purposes) ------------- (Comment this out when using the cellular modem)
+    // ESP_LOGI("SEN66", "PM1: %.1f µg/m³, PM2.5: %.1f µg/m³, PM4: %.1f µg/m³, PM10: %.1f µg/m³, Humidity: %.1f %%, Temp: %.1f °C, CO2: %u ppm, VOC: %.1f, NOX: %.1f",
+    //   reading.pm1p0,
+    //   reading.pm2p5,
+    //   reading.pm4p0,
+    //   reading.pm10p0,
+    //   reading.sen66_humidity,
+    //   reading.sen66_temperature,
+    //   reading.co2,
+    //   reading.voc_index,
+    //   reading.nox_index);
 
-    ESP_LOGI("SFA30", "HCHO: %.1f ppb, Humidity: %.1f %%, Temp: %.1f °C",
-      reading.hcho,
-      reading.sfa30_humidity,
-      reading.sfa30_temperature);
+    // ESP_LOGI("SFA30", "HCHO: %.1f ppb, Humidity: %.1f %%, Temp: %.1f °C",
+    //   reading.hcho,
+    //   reading.sfa30_humidity,
+    //   reading.sfa30_temperature);
 
     // Ensure that 1 second passes between every reading
     vTaskDelayUntil(&last_awake_tick_count, pdMS_TO_TICKS(1000)); // This function updates "last_awake_tick_count" to equal the current tick count when finishing wait

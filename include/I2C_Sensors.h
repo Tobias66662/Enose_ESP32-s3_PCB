@@ -32,6 +32,7 @@ extern QueueHandle_t sensor_readings_queue; // Creates a queue to store the sens
 void sensor_init();
 void initalize_SEN66();
 void initalize_SFA30();
+void sensor_readings_task(void *parameter);
 void SEN66_sensor_readings(void *parameter);
 void SFA30_sensor_readings(void *parameter);
 void sensor_fan_enable(bool enable);

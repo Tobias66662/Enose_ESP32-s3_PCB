@@ -130,6 +130,10 @@ esp_err_t sensirion_i2c_hal_init(uint8_t sda_pin, uint8_t scl_pin) {
   return ESP_OK;
 }
 
+i2c_master_bus_handle_t sensirion_i2c_hal_get_bus_handle(void) {
+    return bus_handle;
+}
+
 /**
  * Release all resources initialized by sensirion_i2c_hal_init().
  */

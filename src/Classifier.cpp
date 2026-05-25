@@ -221,6 +221,7 @@ void classifierTask(void *parameter)
   run_classifier_init();
 
   sensor_readings_t reading = {};
+  TickType_t last_label_send_time = xTaskGetTickCount() - pdMS_TO_TICKS(30000);
 
   while (true)
   {
@@ -246,14 +247,21 @@ void classifierTask(void *parameter)
 
         if (strcmp(resolvedLabel, "empty") != 0) // don't sent to queue if label contains "empty"
         {
-          // store the string pointed to by *resolvedLabel in a custom type that can be added to the queue
-          classifier_label_t resolved_label = {};
-          strncpy(resolved_label.label, resolvedLabel, sizeof(resolved_label.label) - 1);
-          resolved_label.label[sizeof(resolved_label.label) - 1] = '\0';
+          TickType_t now = xTaskGetTickCount();
 
-          if (xQueueSend(classifier_label_queue, &resolved_label, pdMS_TO_TICKS(100)) == pdFALSE) // Send label to Queue
+          if ((now - last_label_send_time) >= pdMS_TO_TICKS(30000)) // Only add new lable to queue if 30 seconds have pased since last label was added
           {
-            ESP_LOGW("Classifier", "Classifier label queue full");
+            // store the string pointed to by *resolvedLabel in a custom type that can be added to the queue
+            classifier_label_t resolved_label = {};
+            strncpy(resolved_label.label, resolvedLabel, sizeof(resolved_label.label) - 1);
+            resolved_label.label[sizeof(resolved_label.label) - 1] = '\0';
+
+            if (xQueueSend(classifier_label_queue, &resolved_label, pdMS_TO_TICKS(100)) == pdFALSE) // Send label to Queue
+            {
+              ESP_LOGW("Classifier", "Classifier label queue full");
+            }
+
+            last_label_send_time = now;
           }
         }
 
