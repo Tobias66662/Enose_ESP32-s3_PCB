@@ -13,7 +13,7 @@
 
 #define I2C_SDA_GPIO      GPIO_NUM_18
 #define I2C_SCL_GPIO      GPIO_NUM_8
-//#define FAN_PIN           GPIO_NUM_16
+#define FAN_PIN           GPIO_NUM_16
 
 QueueHandle_t sensor_readings_queue = NULL;
 

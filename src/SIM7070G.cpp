@@ -57,7 +57,7 @@ bool extract_label_from_response(
     return false;
 }
 
-/* Internal helper function called by start_session to run the modem bring-up flow 
+/* Internal helper function called by start_session to run the modem bring-up flow
     (power on, AT test, network setup, APN, data session, MQTT config and subscribe).
 */
 esp_err_t run_modem_session_setup()
@@ -934,8 +934,7 @@ void modem_receive_task(void* parameter)
 
       default:
         ESP_LOGW("SIM7070G", "Unknown label received: %d", received_label);
-        continue;
-        //break;
+        break;
       }
     }
 

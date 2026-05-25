@@ -119,6 +119,7 @@ extern "C" void app_main()
     boot_init(); // setup task and ISR for the boot button and Boot Led task
     sensor_init(); // Always needs to initialize the sensors before the MP2722, since the I2C bus is created by the sensors.
     MP2722_init();
+    emmitter_init();
     classifier_init();
 
     esp_err_t err = sim7070g::init(115200);
