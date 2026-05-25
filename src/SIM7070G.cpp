@@ -144,6 +144,8 @@ esp_err_t run_modem_session_setup()
     err = sim7070g::mqtt_subscribe();
     if (err != ESP_OK)
     {
+        ESP_LOGW("SIM7070G", "MQTT subscribe failed: %s", esp_err_to_name(err));
+        ESP_LOGW("SIM7070G", "Check APN settings: %s", esp_err_to_name(err));
         return err;
     }
 
