@@ -12,7 +12,7 @@ struct DeviceProfile
 /* Device selector.
  * Set this to one of "1A", "1B", "2A", "2B", "3A", or "3B". (currently limited to 3 but we can easily add more)
  * Example: "1A" compiles telescent_device_1A, publishes to telescent/device1A, and subscribes to telescent/device1B.
- * The device that will communicate with 1A should have Device_ID set to "1B", 2A should communicate with 2B, and 3A should communicate with 3B and so on...
+ * The device that will communicate with 1A should have Device_ID set to "1B", 2A should communicate with 2B, and so on...
  */
 inline constexpr const char *Device_ID = "1A";
 
