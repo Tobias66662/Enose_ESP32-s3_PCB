@@ -14,7 +14,7 @@ struct DeviceProfile
  * Example: "1A" compiles telescent_device_1A, publishes to telescent/device1A, and subscribes to telescent/device1B.
  * The device that will communicate with 1A should have Device_ID set to "1B", 2A should communicate with 2B, and so on...
  */
-inline constexpr const char *Device_ID = "1A";
+inline constexpr const char *Device_ID = "1B";
 
 inline constexpr DeviceProfile kDevice1A{
     "telescent_device_1A",
