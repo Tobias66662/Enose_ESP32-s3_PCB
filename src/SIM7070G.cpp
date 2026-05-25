@@ -300,7 +300,42 @@ bool send_raw_command(
 
     modem_write(command);
 
-    return read_response(response, timeout_ms);
+    response.clear();
+
+    const TickType_t timeout_ticks = pdMS_TO_TICKS(timeout_ms);
+    const TickType_t start_tick = xTaskGetTickCount();
+
+    while ((xTaskGetTickCount() - start_tick) < timeout_ticks)
+    {
+        uint8_t chunk[128];
+
+        const int received =
+            uart_read_bytes(
+                kModemUart,
+                chunk,
+                sizeof(chunk),
+                pdMS_TO_TICKS(100));
+
+        if (received <= 0)
+        {
+            continue;
+        }
+
+        response.append(
+            reinterpret_cast<char *>(chunk),
+            received);
+
+        if (response.find("\r\nOK\r\n") != std::string::npos ||
+            response.find("\nOK\n") != std::string::npos ||
+            response.find("\r\nERROR\r\n") != std::string::npos ||
+            response.find("\nERROR\n") != std::string::npos ||
+            response.find(">") != std::string::npos)
+        {
+            return true;
+        }
+    }
+
+    return !response.empty();
 }
 
 bool response_contains(
@@ -436,7 +471,32 @@ esp_err_t init(uint32_t baud_rate)
 
 esp_err_t start_session()
 {
-    return run_modem_session_setup();
+    constexpr int kMaxSessionAttempts = 3;
+    constexpr TickType_t kRetryDelay = pdMS_TO_TICKS(3000);
+
+    esp_err_t err = ESP_FAIL;
+
+    for (int attempt = 1; attempt <= kMaxSessionAttempts; ++attempt)
+    {
+        err = run_modem_session_setup();
+        if (err == ESP_OK)
+        {
+            return ESP_OK;
+        }
+
+        ESP_LOGW(
+            "SIM7070G",
+            "Session setup attempt %d/%d failed: %s",
+            attempt,
+            kMaxSessionAttempts,
+            esp_err_to_name(err));
+
+        /* Ensure we start from a clean modem state before retrying. */
+        sim7070g::power_off();
+        vTaskDelay(kRetryDelay);
+    }
+
+    return err;
 }
 
 esp_err_t start_tasks()
