@@ -14,6 +14,8 @@
 // PWM Constatns
 static const uint32_t MAX_FREQ = 108000;           // 108 kHz - Maximum frequency corresponding to max emitter power
 static const uint32_t MIN_FREQ = 99000;            // 99 kHz - Minimum frequency corresponding to min emitter power
+static const uint32_t default_FREQ = 105000;            // 99 kHz - Minimum frequency corresponding to min emitter power
+
 #define DUTY_RESOLUTION   LEDC_TIMER_8_BIT  // 0-255
 #define DUTY_CYCLE        128               // 50 % duty cycle (255 / 2)
 #define EMITTER_TIMER     LEDC_TIMER_0
@@ -47,7 +49,7 @@ esp_err_t emmitter_init()
     .speed_mode      = SPEED_MODE,
     .duty_resolution = DUTY_RESOLUTION,
     .timer_num       = EMITTER_TIMER,
-    .freq_hz         = MAX_FREQ, // Initialize to have max emitter power
+    .freq_hz         = default_FREQ, // Initialize to have max emitter power
     .clk_cfg         = LEDC_AUTO_CLK,
     .deconfigure     = false,
   };

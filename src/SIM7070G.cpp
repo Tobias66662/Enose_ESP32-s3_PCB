@@ -979,7 +979,8 @@ void modem_receive_task(void* parameter)
         // send specific commands to emmiter to produce scent
         //emitter_cmd = {.type = EMITTER_CMD_SET_CHANNELS, .PWM_channel_mask = 0b00000001, .duration_ms = 3000}; // Turn on emitter 1 for 1 second
         emitter_cmd.type = EMITTER_CMD_SET_CHANNELS;
-        emitter_cmd.PWM_channel_mask = 0b00000001;
+        //emitter_cmd.PWM_channel_mask = 0b00000001;
+        emitter_cmd.PWM_channel_mask = 0b11111111;
         emitter_cmd.duration_ms = 5000;
 
         xQueueSend(emitter_cmd_queue, &emitter_cmd, pdMS_TO_TICKS(100));

@@ -253,6 +253,7 @@ void classifierTask(void *parameter)
           {
             ESP_LOGI(kTag, "======= RESOLVED LABEL SENT TO QUEUE=======");
             // store the string pointed to by *resolvedLabel in a custom type that can be added to the queue
+            ESP_LOGI(kTag, "%s label sent to classifier_label_queue", resolvedLabel);
             classifier_label_t resolved_label = {};
             strncpy(resolved_label.label, resolvedLabel, sizeof(resolved_label.label) - 1);
             resolved_label.label[sizeof(resolved_label.label) - 1] = '\0';
