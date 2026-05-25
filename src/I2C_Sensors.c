@@ -33,7 +33,7 @@ void sensor_init()
   //sensor_fan_enable(false);  // Ensure fan is off on startup
 
   sensor_readings_queue = xQueueCreate(5, sizeof(sensor_readings_t)); // creates queue that can store 5 commands
-  //xTaskCreate(sensor_readings_task, "sensor_task", 4096, sensor_readings_queue, 5, NULL); // Creates sensor_readings_task with priority 5 and with 4096 bytes on the stack allocated to it (might be too little)
+  xTaskCreate(sensor_readings_task, "sensor_task", 4096, sensor_readings_queue, 5, NULL); // Creates sensor_readings_task with priority 5 and with 4096 bytes on the stack allocated to it (might be too little)
 
 }
 
