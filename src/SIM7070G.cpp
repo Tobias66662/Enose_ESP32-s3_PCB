@@ -30,6 +30,9 @@ void modem_transmit_task(void *parameter);
 void modem_uart_reader_task(void *parameter);
 void modem_receive_task(void *parameter);
 
+/* Finds one of the supported classifier labels in the modem response and places it in label_out.
+ * Returns true only when a known label is found and copied into label_out.
+ */
 bool extract_label_from_response(
     const std::string &response,
     classifier_label_t &label_out)
@@ -54,6 +57,9 @@ bool extract_label_from_response(
     return false;
 }
 
+/* Internal helper function called by start_session to run the modem bring-up flow 
+    (power on, AT test, network setup, APN, data session, MQTT config and subscribe).
+*/
 esp_err_t run_modem_session_setup()
 {
     esp_err_t err = sim7070g::power_on();
@@ -606,7 +612,7 @@ esp_err_t mqtt_configure()
 
     std::string client_cmd =
         "AT+SMCONF=\"CLIENTID\",\"" +
-        std::string(MQTT_CLIENT_ID) +
+        std::string(mqtt_client_id()) +
         "\"\r\n";
 
     err = send_checked_command(
@@ -652,7 +658,7 @@ esp_err_t mqtt_subscribe()
 {
     std::string cmd =
         "AT+SMSUB=\"" +
-        std::string(MQTT_SUBSCRIBE_TOPIC) +
+        std::string(mqtt_subscribe_topic()) +
         "\"," +
         std::to_string(MQTT_QOS) +
         "\r\n";
@@ -692,7 +698,7 @@ esp_err_t mqtt_publish(
 {
     std::string cmd =
         "AT+SMPUB=\"" +
-        std::string(MQTT_PUBLISH_TOPIC) +
+        std::string(mqtt_publish_topic()) +
         "\"," +
         std::to_string(payload.length()) +
         "," +
@@ -761,7 +767,7 @@ esp_err_t mqtt_publish(
 
 namespace {
 
-
+/* Converts a label string into the matching scent enum value. */
 scent_label_t parse_scent_label(const char *label)
 {
   if (label == nullptr)
@@ -792,6 +798,7 @@ scent_label_t parse_scent_label(const char *label)
   return SCENT_UNKNOWN;
 }
 
+/* Scans a modem response for a known scent label and returns the matching enum value. */
 scent_label_t parse_scent_label_from_response(const std::string &response)
 {
   if (response.find("cinnamon") != std::string::npos) // Check if the response sting contains "cinnamon", retures npos if it doesen't
