@@ -5,6 +5,7 @@
 
 #include "esp_err.h"
 #include "Classifier.h"
+#include "DeviceConfig.h"
 
 typedef enum
 {
@@ -27,21 +28,22 @@ inline constexpr const char *APN = "www.internet.mtelia.dk";
 inline constexpr const char *MQTT_BROKER = "broker.hivemq.com";
 inline constexpr uint16_t MQTT_PORT = 1883;
 
-// Every device MUST have a unique client ID
-// Examples:
-// "telescent_device_A"
-// "telescent_device_B"
-inline constexpr const char *MQTT_CLIENT_ID =
-    "telescent_device_A";
+// Returns the MQTT profile selected by Device_ID in DeviceConfig.h.
+// The chosen profile controls the client ID, publish topic, and subscribe topic.
+inline const char *mqtt_client_id()
+{
+    return selected_device_profile().mqtt_client_id;
+}
 
-// Topic this device publishes TO
-inline constexpr const char *MQTT_PUBLISH_TOPIC =
-    "telescent/deviceA";
+inline const char *mqtt_publish_topic()
+{
+    return selected_device_profile().mqtt_publish_topic;
+}
 
-// Topic this device subscribes TO
-// "#" = wildcard for everything under "telescent/". Can be used to look at all messages from all devices (if we make more than 2 :D).
-inline constexpr const char *MQTT_SUBSCRIBE_TOPIC =
-    "telescent/deviceB";
+inline const char *mqtt_subscribe_topic()
+{
+    return selected_device_profile().mqtt_subscribe_topic;
+}
 
 // Default MQTT QoS
 // 0 = at most once

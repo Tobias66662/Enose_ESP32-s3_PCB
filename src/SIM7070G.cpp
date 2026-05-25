@@ -606,7 +606,7 @@ esp_err_t mqtt_configure()
 
     std::string client_cmd =
         "AT+SMCONF=\"CLIENTID\",\"" +
-        std::string(MQTT_CLIENT_ID) +
+        std::string(mqtt_client_id()) +
         "\"\r\n";
 
     err = send_checked_command(
@@ -652,7 +652,7 @@ esp_err_t mqtt_subscribe()
 {
     std::string cmd =
         "AT+SMSUB=\"" +
-        std::string(MQTT_SUBSCRIBE_TOPIC) +
+        std::string(mqtt_subscribe_topic()) +
         "\"," +
         std::to_string(MQTT_QOS) +
         "\r\n";
@@ -692,7 +692,7 @@ esp_err_t mqtt_publish(
 {
     std::string cmd =
         "AT+SMPUB=\"" +
-        std::string(MQTT_PUBLISH_TOPIC) +
+        std::string(mqtt_publish_topic()) +
         "\"," +
         std::to_string(payload.length()) +
         "," +
