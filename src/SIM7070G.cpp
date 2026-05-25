@@ -7,12 +7,14 @@
 #include "driver/uart.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "I2C_Sensors.h"
 #include "Emitter.h"
 
 QueueHandle_t modem_label_queue  = nullptr;
+SemaphoreHandle_t modem_uart_mutex = nullptr;
 
 namespace {
 
@@ -29,33 +31,6 @@ constexpr uint32_t kInterCommandDelayMs = 250;
 void modem_transmit_task(void *parameter);
 void modem_uart_reader_task(void *parameter);
 void modem_receive_task(void *parameter);
-
-/* Finds one of the supported classifier labels in the modem response and places it in label_out.
- * Returns true only when a known label is found and copied into label_out.
- */
-bool extract_label_from_response(
-    const std::string &response,
-    classifier_label_t &label_out)
-{
-    static constexpr const char *kKnownLabels[] = {
-        "cinnamon",
-        "banana",
-        "coconut",
-        "empty",
-    };
-
-    for (const char *label : kKnownLabels)
-    {
-        if (response.find(label) != std::string::npos)
-        {
-            std::strncpy(label_out.label, label, sizeof(label_out.label) - 1);
-            label_out.label[sizeof(label_out.label) - 1] = '\0';
-            return true;
-        }
-    }
-
-    return false;
-}
 
 /* Internal helper function called by start_session to run the modem bring-up flow
     (power on, AT test, network setup, APN, data session, MQTT config and subscribe).
@@ -278,7 +253,7 @@ bool read_response(
 
         if (received > 0)
         {
-          ESP_LOGI("SIM7070G", "response detected");
+          //   ESP_LOGI("SIM7070G", "response detected");
           response.append(
               reinterpret_cast<char *>(chunk),
               received);
@@ -296,6 +271,16 @@ bool send_raw_command(
     std::string &response,
     uint32_t timeout_ms)
 {
+    if (modem_uart_mutex == nullptr)
+    {
+        return false;
+    }
+
+    if (xSemaphoreTake(modem_uart_mutex, pdMS_TO_TICKS(timeout_ms)) != pdTRUE)
+    {
+        return false;
+    }
+
     uart_flush_input(kModemUart);
 
     modem_write(command);
@@ -331,10 +316,12 @@ bool send_raw_command(
             response.find("\nERROR\n") != std::string::npos ||
             response.find(">") != std::string::npos)
         {
+            xSemaphoreGive(modem_uart_mutex);
             return true;
         }
     }
 
+    xSemaphoreGive(modem_uart_mutex);
     return !response.empty();
 }
 
@@ -466,19 +453,27 @@ esp_err_t init(uint32_t baud_rate)
     return err;
   }
 
+    modem_uart_mutex = xSemaphoreCreateMutex();
+
+    if (modem_uart_mutex == nullptr)
+    {
+        return ESP_ERR_NO_MEM;
+    }
+
   return modem_uart_init(baud_rate);
 }
 
 esp_err_t start_session()
 {
-    constexpr int kMaxSessionAttempts = 3;
     constexpr TickType_t kRetryDelay = pdMS_TO_TICKS(3000);
 
-    esp_err_t err = ESP_FAIL;
+    int attempt = 0;
 
-    for (int attempt = 1; attempt <= kMaxSessionAttempts; ++attempt)
+    while (true)
     {
-        err = run_modem_session_setup();
+        ++attempt;
+
+        esp_err_t err = run_modem_session_setup();
         if (err == ESP_OK)
         {
             return ESP_OK;
@@ -486,17 +481,14 @@ esp_err_t start_session()
 
         ESP_LOGW(
             "SIM7070G",
-            "Session setup attempt %d/%d failed: %s",
+            "Session setup attempt %d failed: %s",
             attempt,
-            kMaxSessionAttempts,
             esp_err_to_name(err));
 
         /* Ensure we start from a clean modem state before retrying. */
         sim7070g::power_off();
         vTaskDelay(kRetryDelay);
     }
-
-    return err;
 }
 
 esp_err_t start_tasks()
@@ -581,12 +573,24 @@ esp_err_t send_command(
 // Read any pending data from the modem UART (URC / unsolicited messages).
 esp_err_t get_response(std::string &response, uint32_t timeout_ms)
 {
+    if (modem_uart_mutex == nullptr)
+    {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (xSemaphoreTake(modem_uart_mutex, pdMS_TO_TICKS(timeout_ms)) != pdTRUE)
+    {
+        return ESP_ERR_TIMEOUT;
+    }
+
     // read_response returns true when data was received
     if (read_response(response, timeout_ms))
     {
+        xSemaphoreGive(modem_uart_mutex);
         return ESP_OK;
     }
 
+    xSemaphoreGive(modem_uart_mutex);
     return ESP_ERR_TIMEOUT;
 }
 
@@ -828,37 +832,6 @@ esp_err_t mqtt_publish(
 
 namespace {
 
-/* Converts a label string into the matching scent enum value. */
-scent_label_t parse_scent_label(const char *label)
-{
-  if (label == nullptr)
-  {
-    return SCENT_UNKNOWN;
-  }
-
-  if (strcmp(label, "cinnamon") == 0)
-  {
-    return SCENT_CINNAMON;
-  }
-
-  if (strcmp(label, "banana") == 0)
-  {
-    return SCENT_BANANA;
-  }
-
-  if (strcmp(label, "coconut") == 0)
-  {
-    return SCENT_COCONUT;
-  }
-
-  if (strcmp(label, "empty") == 0)
-  {
-    return SCENT_EMPTY;
-  }
-
-  return SCENT_UNKNOWN;
-}
-
 /* Scans a modem response for a known scent label and returns the matching enum value. */
 scent_label_t parse_scent_label_from_response(const std::string &response)
 {
@@ -927,7 +900,7 @@ void modem_uart_reader_task(void *parameter)
     esp_err_t err = sim7070g::get_response(response, 1000); // Gets the raw string response from the UART buffer
     if (err != ESP_OK)
     {
-      ESP_LOGE("sim7070G", "get_response returned an error");
+    //   ESP_LOGE("sim7070G", "get_response returned an error");
       continue;
     }
     ESP_LOGE("sim7070G", "get_response did not get error");
