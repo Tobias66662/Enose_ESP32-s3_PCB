@@ -23,7 +23,8 @@ USER CONFIGURATION
 
 /* APN provided by your SIM/network provider */
 inline constexpr const char *APN = "www.internet.mtelia.dk";
-//inline constexpr const char *APN = "internet";
+//inline constexpr const char *APN = "internet"                for Telenor 
+//                            *APN = "www.internet.mtelia.dk"  for Telia
 
 /* MQTT broker settings */
 inline constexpr const char *MQTT_BROKER = "broker.hivemq.com";
@@ -81,6 +82,11 @@ esp_err_t power_on();
 and waits for it to power off.
  */
 esp_err_t power_off();
+
+/* Checks signal quality
+
+*/
+esp_err_t signal_check();
 
 /* Sends a raw AT command and returns the modem response. */
 esp_err_t send_command(

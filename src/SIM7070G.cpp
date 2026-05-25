@@ -16,6 +16,9 @@
 QueueHandle_t modem_label_queue  = nullptr;
 SemaphoreHandle_t modem_uart_mutex = nullptr;
 
+// forward declaration for signal quality helper implemented later
+namespace sim7070g { esp_err_t signal_quality_check(); }
+
 namespace {
 
 constexpr uart_port_t kModemUart = UART_NUM_1;
@@ -87,6 +90,14 @@ esp_err_t run_modem_session_setup()
         return err;
     }
 
+    /* Check signal quality now that we are attached to the network. */
+    err = sim7070g::signal_check();
+    if (err != ESP_OK)
+    {
+        ESP_LOGW("SIM7070G", "Signal quality check failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
     err = sim7070g::configure_apn();
     if (err != ESP_OK)
     {
@@ -113,6 +124,8 @@ esp_err_t run_modem_session_setup()
             return err;
         }
     }
+
+    
 
     err = sim7070g::mqtt_configure();
     if (err != ESP_OK)
@@ -554,6 +567,16 @@ esp_err_t power_off()
     return ESP_OK;
 }
 
+esp_err_t signal_check()
+{
+    esp_err_t err = ::sim7070g::signal_quality_check();
+    if (err != ESP_OK)
+    {
+        ESP_LOGW("SIM7070G", "signal_quality_check failed: %s", esp_err_to_name(err));
+    }
+    return err;
+}
+
 esp_err_t send_command(
     const char *command,
     std::string &response,
@@ -634,6 +657,13 @@ esp_err_t check_network_registration()
     return send_checked_command(
         "AT+CEREG?\r\n",
         10000);
+}
+
+esp_err_t signal_quality_check()
+{
+    return send_checked_command(
+        "AT+CSQ\r\n",
+        20000);
 }
 
 esp_err_t check_packet_attachment()
@@ -895,7 +925,7 @@ void modem_uart_reader_task(void *parameter)
 
   while (1)
   {
-    ESP_LOGE("sim7070G", "loop beggining");
+    ESP_LOGE("sim7070G", "loop beginning of modem_uart_reader_task");
     std::string response;
     esp_err_t err = sim7070g::get_response(response, 1000); // Gets the raw string response from the UART buffer
     if (err != ESP_OK)
