@@ -78,7 +78,7 @@ esp_err_t emmitter_init()
   xTaskCreate(emitter_task, "Emitter Task", 4096, NULL, 6, NULL); // Creates emitter_task with priority 6 and with 4096 bytes on the stack allocated to it (might be too much)
 
 
-  //BoostConverter_enable(true);
+  BoostConverter_enable(true);
   return ESP_OK;
 }
 
@@ -158,7 +158,7 @@ void emitter_task(void *parameter)
       {
         emitter_enable_all(false);
         emitting = false;
-        BoostConverter_enable(false);
+        //BoostConverter_enable(false);
       }
 
       // Update the duration that "xQueueReceive" funciton will wait befefore timeout, to correspond to cmd.duration_ms
@@ -184,7 +184,8 @@ void emitter_task(void *parameter)
         break;
 
       case EMITTER_CMD_SET_CHANNELS:
-        BoostConverter_enable(true);  // temp for testing
+        //BoostConverter_enable(true);  // temp for testing
+        ESP_LOGI("emitter", "set channel mask");
         emitter_set_channels(cmd.PWM_channel_mask);
         if (cmd.PWM_channel_mask != 0) // Doesen't set the emitter flag if this command is used to disable all channels
         {
@@ -201,7 +202,7 @@ void emitter_task(void *parameter)
         break;
 
       case EMITTER_CMD_ENABLE_ALL:
-        BoostConverter_enable(true); // temp for testing
+        //BoostConverter_enable(true); // temp for testing
         emitter_enable_all(true);
         emitting = true;
         if (cmd.duration_ms > 0) // If the duration is set to 0, the channls will stay on indefinitly until a new command diables them
@@ -211,7 +212,7 @@ void emitter_task(void *parameter)
         break;
 
       case EMITTER_CMD_DISABLE_ALL:
-        emitter_enable_all(false);
+        //emitter_enable_all(false);
         emitting = false;
         break;
 
@@ -226,7 +227,7 @@ void emitter_task(void *parameter)
       {
         emitter_enable_all(false);
         emitting = false;
-        BoostConverter_enable(false);
+        //BoostConverter_enable(false);
       }
     }
   }

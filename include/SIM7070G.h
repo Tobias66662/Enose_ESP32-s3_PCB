@@ -23,6 +23,7 @@ USER CONFIGURATION
 
 /* APN provided by your SIM/network provider */
 inline constexpr const char *APN = "www.internet.mtelia.dk";
+//inline constexpr const char *APN = "internet";
 
 /* MQTT broker settings */
 inline constexpr const char *MQTT_BROKER = "broker.hivemq.com";

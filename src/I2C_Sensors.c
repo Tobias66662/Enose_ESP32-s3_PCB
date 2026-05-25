@@ -142,7 +142,7 @@ void sensor_readings_task(void* parameter)
       reading.sfa30_temperature = sfa30_temperature / 200.0f;
     }
 
-    ESP_LOGI("Sensors", "Sensor readings sent to Queue");
+    //ESP_LOGI("Sensors", "Sensor readings sent to Queue");
     //--------- Send Reading to Queue -------------
     if (xQueueSend(sensor_readings_queue, &reading, pdMS_TO_TICKS(100)) == pdFALSE)
     {

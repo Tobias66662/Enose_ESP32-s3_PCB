@@ -6,7 +6,7 @@
 #include "edge-impulse-sdk/dsp/returntypes.h"
 
 
-constexpr char kTag[] = "main";
+constexpr char kTag[] = "Classifier";
 constexpr uint8_t kRequiredConsecutivePredictions = 10;
 constexpr float kRequiredAverageConfidence = 0.80f;
 
@@ -165,7 +165,7 @@ const char *runInference(float *confidenceOut)
     }
   }
 
-  ESP_LOGI(kTag, "Prediction: %s (%.3f)", bestLabel, maxValue);
+  //ESP_LOGI(kTag, "Prediction: %s (%.3f)", bestLabel, maxValue);
 
   if (confidenceOut != nullptr)
   {
@@ -189,25 +189,25 @@ const char *applyConsensusLabel(const char *predictionLabel, float score)
       ? recentPredictionScoreSum / static_cast<float>(recentPredictionScoreCount)
       : 0.0f;
 
-    ESP_LOGI(
-      kTag,
-      "No consensus yet -> output empty (count=%u/%u, avg_last_%u=%.3f, threshold=%.3f)",
-      consecutivePredictionCount,
-      kRequiredConsecutivePredictions,
-      kRequiredConsecutivePredictions,
-      averageScore,
-      kRequiredAverageConfidence);
+    // ESP_LOGI(
+    //   kTag,
+    //   "No consensus yet -> output empty (count=%u/%u, avg_last_%u=%.3f, threshold=%.3f)",
+    //   consecutivePredictionCount,
+    //   kRequiredConsecutivePredictions,
+    //   kRequiredConsecutivePredictions,
+    //   averageScore,
+    //   kRequiredAverageConfidence);
 
     return "empty";
   }
 
   const float averageScore = recentPredictionScoreSum / static_cast<float>(recentPredictionScoreCount);
-  ESP_LOGI(
-    kTag,
-    "Consensus label: %s avg=%.3f threshold=%.3f",
-    predictionLabel,
-    averageScore,
-    kRequiredAverageConfidence);
+  // ESP_LOGI(
+  //   kTag,
+  //   "Consensus label: %s avg=%.3f threshold=%.3f",
+  //   predictionLabel,
+  //   averageScore,
+  //   kRequiredAverageConfidence);
 
   return predictionLabel;
 }
@@ -243,7 +243,7 @@ void classifierTask(void *parameter)
         const char *bestLabel = runInference(&confidence); //run classifier on the newest buffer contents
         const char *resolvedLabel = applyConsensusLabel(bestLabel, confidence); // apply consensus filtering
 
-        ESP_LOGI(kTag, "Resolved label: %s", resolvedLabel);
+        //ESP_LOGI(kTag, "Resolved label: %s", resolvedLabel);
 
         if (strcmp(resolvedLabel, "empty") != 0) // don't sent to queue if label contains "empty"
         {

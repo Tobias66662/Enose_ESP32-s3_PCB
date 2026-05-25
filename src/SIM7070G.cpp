@@ -278,12 +278,13 @@ bool read_response(
 
         if (received > 0)
         {
-            response.append(
-                reinterpret_cast<char *>(chunk),
-                received);
+          ESP_LOGI("SIM7070G", "response detected");
+          response.append(
+              reinterpret_cast<char *>(chunk),
+              received);
 
-            last_activity =
-                xTaskGetTickCount();
+          last_activity =
+              xTaskGetTickCount();
         }
     }
 
@@ -801,6 +802,7 @@ scent_label_t parse_scent_label(const char *label)
 /* Scans a modem response for a known scent label and returns the matching enum value. */
 scent_label_t parse_scent_label_from_response(const std::string &response)
 {
+  ESP_LOGI("sim70707G", "string to parse: %s", response.c_str());
   if (response.find("cinnamon") != std::string::npos) // Check if the response sting contains "cinnamon", retures npos if it doesen't
   {
     return SCENT_CINNAMON;
@@ -860,13 +862,15 @@ void modem_uart_reader_task(void *parameter)
 
   while (1)
   {
+    ESP_LOGE("sim7070G", "loop beggining");
     std::string response;
     esp_err_t err = sim7070g::get_response(response, 1000); // Gets the raw string response from the UART buffer
     if (err != ESP_OK)
     {
+      ESP_LOGE("sim7070G", "get_response returned an error");
       continue;
     }
-
+    ESP_LOGE("sim7070G", "get_response did not get error");
     scent_label_t received_label = parse_scent_label_from_response(response); // Check for labels in the response string
 
     if (received_label == SCENT_UNKNOWN)
@@ -875,9 +879,19 @@ void modem_uart_reader_task(void *parameter)
       continue;
     }
 
+    if (received_label == SCENT_EMPTY)
+    {
+      printf("URC:\n%s\n", response.c_str());
+      continue;
+    }
+
     if (xQueueSend(modem_label_queue, &received_label, pdMS_TO_TICKS(100)) == pdFALSE)
     {
       ESP_LOGW("SIM7070G", "UART receive queue full");
+    }
+    else
+    {
+      ESP_LOGI("sim7070G", "Label sent to modem_label_queue");
     }
   }
 }

@@ -89,10 +89,12 @@ void boot_button_InterruptTask(void* parameter)
         last_press_time = current_time;
 
         //---------------- Code here runs whenever the boot button is pressed ---------------- //
-        //sim7070g::power_off();
+        sim7070g::power_off();
+        BoostConverter_enable(false);
         gpio_set_level(BOOT_LED, 1);
         vTaskDelay(500 / portTICK_PERIOD_MS); // 0,5s delay
         gpio_set_level(BOOT_LED, 0);
+
       }
     }
   }
