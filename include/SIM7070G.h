@@ -84,9 +84,10 @@ and waits for it to power off.
 esp_err_t power_off();
 
 /* Checks signal quality
-
+Typical 2-30 = -110...-54 dBm
 */
 esp_err_t signal_check();
+
 
 /* Sends a raw AT command and returns the modem response. */
 esp_err_t send_command(
@@ -121,8 +122,8 @@ esp_err_t activate_data_connection();
 /* Check LTE registration state */
 esp_err_t check_network_registration();
 
-/* Check packet service attachment */
-esp_err_t check_packet_attachment();
+/* Check GPRS service attachment */
+esp_err_t check_service_attachment();
 
 /* =====================================================
 MQTT

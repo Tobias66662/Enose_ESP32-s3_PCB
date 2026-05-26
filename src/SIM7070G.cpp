@@ -16,9 +16,6 @@
 QueueHandle_t modem_label_queue  = nullptr;
 SemaphoreHandle_t modem_uart_mutex = nullptr;
 
-// forward declaration for signal quality helper implemented later
-namespace sim7070g { esp_err_t signal_quality_check(); }
-
 namespace {
 
 constexpr uart_port_t kModemUart = UART_NUM_1;
@@ -84,9 +81,10 @@ esp_err_t run_modem_session_setup()
         return err;
     }
 
-    err = sim7070g::check_packet_attachment();
+    err = sim7070g::check_service_attachment();
     if (err != ESP_OK)
     {
+        ESP_LOGW("SIM7070G", "Attach or detach from GPRS service failed: %s", esp_err_to_name(err));
         return err;
     }
 
@@ -348,6 +346,51 @@ bool response_contains(
            != std::string::npos;
 }
 
+const char *signal_quality_label(int rssi)
+{
+    if (rssi == 99)
+    {
+        return "no signal / unknown";
+    }
+
+    if (rssi >= 2 && rssi <= 5)
+    {
+        return "poor or no signal";
+    }
+
+    if (rssi >= 6 && rssi <= 12)
+    {
+        return "poor signal";
+    }
+
+    if (rssi >= 13 && rssi <= 20)
+    {
+        return "fair signal";
+    }
+
+    if (rssi >= 21 && rssi <= 27)
+    {
+        return "good signal";
+    }
+
+    if (rssi >= 28 && rssi <= 31)
+    {
+        return "excellent signal";
+    }
+
+    return "unknown signal quality";
+}
+
+/*
+    send_checked_command
+    Sends an AT command using `send_raw_command`, waits up to `timeout_ms` for a response,
+    prints the command and raw modem response to the serial console for debugging,
+    optionally returns the raw response via `out_response`, and maps common modem replies
+    into `esp_err_t`:
+        - returns `ESP_OK` if the response contains "OK"
+        - returns `ESP_ERR_INVALID_RESPONSE` if the response contains "ERROR"
+        - returns `ESP_ERR_TIMEOUT` if no final response is received within the timeout
+*/
 esp_err_t send_checked_command(
     const std::string &command,
     uint32_t timeout_ms,
@@ -445,6 +488,66 @@ void modem_power_off()
         5000);
 
     vTaskDelay(pdMS_TO_TICKS(5000));
+}
+
+
+esp_err_t signal_quality_check()
+{
+    std::string response;
+
+    esp_err_t err = send_checked_command(
+        "AT+CSQ\r\n",
+        20000,
+        &response);
+
+    if (err != ESP_OK)
+    {
+        return err;
+    }
+
+    const std::string marker = "+CSQ:";
+    const std::size_t marker_position = response.find(marker);
+
+    if (marker_position == std::string::npos)
+    {
+        ESP_LOGW("SIM7070G", "AT+CSQ response missing +CSQ field");
+        return ESP_OK;
+    }
+
+    int rssi = -1;
+    int ber = -1;
+
+    const int parsed = std::sscanf(
+        response.c_str() + marker_position,
+        "+CSQ: %d,%d",
+        &rssi,
+        &ber);
+
+    if (parsed < 1)
+    {
+        ESP_LOGW("SIM7070G", "Failed to parse AT+CSQ response: %s", response.c_str());
+        return ESP_OK;
+    }
+
+    const char *quality = signal_quality_label(rssi);
+
+    ESP_LOGI(
+        "SIM7070G",
+        "Signal quality: %d (%s)%s",
+        rssi,
+        quality,
+        (ber >= 0) ? "" : "");
+
+    if (rssi == 99)
+    {
+        ESP_LOGI("SIM7070G", "AT+CSQ: 99 -> no signal / unknown");
+    }
+    else
+    {
+        ESP_LOGI("SIM7070G", "AT+CSQ: %d -> %s", rssi, quality);
+    }
+
+    return ESP_OK;
 }
 
 } // namespace
@@ -571,7 +674,8 @@ esp_err_t power_off()
 
 esp_err_t signal_check()
 {
-    esp_err_t err = ::sim7070g::signal_quality_check();
+    esp_err_t err = signal_quality_check();
+    
     if (err != ESP_OK)
     {
         ESP_LOGW("SIM7070G", "signal_quality_check failed: %s", esp_err_to_name(err));
@@ -661,18 +765,26 @@ esp_err_t check_network_registration()
         10000);
 }
 
-esp_err_t signal_quality_check()
+esp_err_t check_service_attachment()
 {
-    return send_checked_command(
-        "AT+CSQ\r\n",
-        20000);
-}
+    std::string response;
 
-esp_err_t check_packet_attachment()
-{
-    return send_checked_command(
+    esp_err_t err = send_checked_command(
         "AT+CGATT?\r\n",
-        10000);
+        10000,
+        &response);
+
+    // Print a human-readable interpretation of +CGATT result
+    if (response_contains(response, "+CGATT: 1"))
+    {
+        ESP_LOGI("SIM7070G", "1 -> GPRS attached");
+    }
+    else if (response_contains(response, "+CGATT: 0"))
+    {
+        ESP_LOGI("SIM7070G", "0 -> GPRS detached");
+    }
+
+    return err;
 }
 
 // =====================================================
