@@ -742,6 +742,28 @@ esp_err_t set_network_mode(uint8_t mode)
 esp_err_t configure_apn()
 {
     std::string cmd =
+        "AT+CGDCONT=1,\"IP\"\r\n";
+
+    esp_err_t err = send_checked_command(
+        cmd,
+        10000);
+
+    if (err == ESP_OK)
+    {
+        ESP_LOGW(
+        "SIM7070G",
+        "Automatic APN assignment succeeded: %s",
+        esp_err_to_name(err));
+        return ESP_OK;
+    }
+
+    ESP_LOGW(
+        "SIM7070G",
+        "Automatic APN assignment failed: %s. Defaulting to APN: %s",
+        esp_err_to_name(err),
+        APN);
+
+    cmd =
         "AT+CGDCONT=1,\"IP\",\"" +
         std::string(APN) +
         "\"\r\n";

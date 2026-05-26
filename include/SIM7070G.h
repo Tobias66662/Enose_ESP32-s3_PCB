@@ -22,7 +22,7 @@ USER CONFIGURATION
 ===================================================== */
 
 /* APN provided by your SIM/network provider */
-inline constexpr const char *APN = "internet";
+inline constexpr const char *APN = "www.internet.mtelia.dk";
 //inline constexpr const char *APN = "internet"                for Telenor 
 //                            *APN = "www.internet.mtelia.dk"  for Telia
 
