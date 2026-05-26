@@ -96,7 +96,7 @@ esp_err_t run_modem_session_setup()
         return err;
     }
 
-    err = sim7070g::configure_apn();
+    err = sim7070g::define_pdp_context();
     if (err != ESP_OK)
     {
         return err;
@@ -739,7 +739,7 @@ esp_err_t set_network_mode(uint8_t mode)
         10000);
 }
 
-esp_err_t configure_apn()
+esp_err_t define_pdp_context()
 {
     std::string cmd =
         "AT+CGDCONT=1,\"IP\"\r\n";

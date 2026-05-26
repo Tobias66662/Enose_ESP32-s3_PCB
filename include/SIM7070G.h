@@ -114,7 +114,7 @@ mode:
 esp_err_t set_network_mode(uint8_t mode);
 
 /* Configure PDP/APN context */
-esp_err_t configure_apn();
+esp_err_t define_pdp_context();
 
 /* Activate PDP/data connection */
 esp_err_t activate_data_connection();

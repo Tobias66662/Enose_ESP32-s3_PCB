@@ -16,7 +16,6 @@
 #include "Classifier.h"
 
 
-
 #define BOOT_LED GPIO_NUM_38 // PCB DEBUG LED
 //#define BOOT_BUTTON GPIO_NUM_0;
 constexpr gpio_num_t BOOT_BUTTON = GPIO_NUM_0;
